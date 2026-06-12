@@ -9,7 +9,8 @@ import uvicorn
 import threading
 from bot.handlers import user, admin
 
-TOKEN = os.getenv("BOT_TOKEN")
+# Yahan maine aapka token seedha daal diya hai
+TOKEN = "8001535871:AAEr-DvtKgP3XggXNqih-rzy1Yfjx4UqAhI"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 app = FastAPI()
@@ -25,6 +26,7 @@ async def run_bot():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    # Bot aur Server dono ko ek saath start kar rahe hain
     threading.Thread(target=lambda: asyncio.run(run_bot())).start()
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
-  
+    
