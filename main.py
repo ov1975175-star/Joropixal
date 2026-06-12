@@ -1,22 +1,20 @@
 import asyncio
 from aiogram import Bot, Dispatcher
-from bot.handlers import user_router, admin_router
-from fastapi import FastAPI
-import uvicorn
+from bot.handlers import user, admin
 
-bot = Bot(token="8001535871:AAEr-DvtKgP3XggXNqih-rzy1Yfjx4UqAhI")
-dp = Dispatcher()
-app = FastAPI()
+async def main():
+    # Apna Token yahan daalein
+    bot = Bot(token="8001535871:AAEr-DvtKgP3XggXNqih-rzy1Yfjx4UqAhI")
+    dp = Dispatcher()
 
-dp.include_router(user_router)
-dp.include_router(admin_router)
+    # Routers register karein
+    dp.include_router(user.router)
+    dp.include_router(admin.router)
 
-@app.post("/webhook")
-async def handle_webhook(update: dict):
-    # Webhook handling logic
-    return {"status": "ok"}
+    print("Bot is running...")
+    # Polling mode: Webhook error se bachne ke liye
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    # Render par port 10000 use karein
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    asyncio.run(main())
     
