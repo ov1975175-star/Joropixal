@@ -1,20 +1,7 @@
-import firebase_admin
-from firebase_admin import credentials, db
+import json
+import os
+from firebase_admin import credentials
 
-# serviceAccountKey.json aapke folder mein hona chahiye
-cred = credentials.Certificate("serviceAccountKey.json")
-firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://joro-gaming-default-rtdb.firebaseio.com' 
-})
-
-class FirebaseService:
-    def get_order(self, order_id):
-        return db.reference(f'orders/{order_id}').get()
-
-    def update_order(self, order_id, data):
-        db.reference(f'orders/{order_id}').update(data)
-        
-    def get_products(self):
-        # Yeh function products list karega
-        return db.reference('products').get()
-        
+# Environment variable se json uthayein
+json_data = json.loads(os.getenv("FIREBASE_JSON"))
+cred = credentials.Certificate(json_data)
