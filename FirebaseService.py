@@ -3,9 +3,11 @@ import json
 import firebase_admin
 from firebase_admin import credentials, db
 
-# Environment variable se JSON load karo
-_cred_json = os.getenv("FIREBASE_JSON")
-cred = credentials.Certificate(json.loads(_cred_json))
+# Try file first, then environment variable
+if os.path.exists("serviceAccountKey.json"):
+    cred = credentials.Certificate("serviceAccountKey.json")
+else:
+    cred = credentials.Certificate(json.loads(os.getenv("FIREBASE_JSON")))
 
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://joro-gaming-default-rtdb.firebaseio.com'
@@ -13,7 +15,6 @@ firebase_admin.initialize_app(cred, {
 
 class FirebaseService:
 
-    # ─── PRODUCTS ───────────────────────────────────────────
     def get_all_products(self):
         data = db.reference('products').get()
         if not data:
@@ -22,11 +23,8 @@ class FirebaseService:
 
     def add_product(self, name, price, description, qr_url):
         ref = db.reference('products').push({
-            'name': name,
-            'price': price,
-            'description': description,
-            'qr_url': qr_url,
-            'active': True
+            'name': name, 'price': price,
+            'description': description, 'qr_url': qr_url, 'active': True
         })
         return ref.key
 
@@ -39,15 +37,11 @@ class FirebaseService:
     def get_product(self, product_id):
         return db.reference(f'products/{product_id}').get()
 
-    # ─── ORDERS ─────────────────────────────────────────────
     def create_order(self, user_id, username, product_id, product_name, price):
         ref = db.reference('orders').push({
-            'user_id': user_id,
-            'username': username,
-            'product_id': product_id,
-            'product_name': product_name,
-            'price': price,
-            'status': 'pending'
+            'user_id': user_id, 'username': username,
+            'product_id': product_id, 'product_name': product_name,
+            'price': price, 'status': 'pending'
         })
         return ref.key
 
@@ -70,12 +64,9 @@ class FirebaseService:
         return [{'id': k, **v} for k, v in data.items()
                 if str(v.get('user_id')) == str(user_id) and v.get('status') == 'approved']
 
-    # ─── USERS ──────────────────────────────────────────────
     def save_user(self, user_id, username, full_name):
         db.reference(f'users/{user_id}').set({
-            'username': username,
-            'full_name': full_name,
-            'user_id': user_id
+            'username': username, 'full_name': full_name, 'user_id': user_id
         })
 
     def get_all_users(self):
@@ -83,3 +74,4 @@ class FirebaseService:
         if not data:
             return []
         return [{'id': k, **v} for k, v in data.items()]
+    
