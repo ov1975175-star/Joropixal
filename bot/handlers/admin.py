@@ -5,14 +5,12 @@ from FirebaseService import FirebaseService
 router = Router()
 db = FirebaseService()
 
+# Admin verification ka button
 @router.callback_query(F.data.startswith("verify:"))
-async def verify_payment(call: CallbackQuery):
+async def approve(call: CallbackQuery):
     order_id = call.data.split(":")[1]
-    # Firebase mein status 'approved' karo
+    # Firebase mein status update karo
     db.update_order(order_id, {"status": "approved"})
-    
-    # User ko file bhejo
-    order_data = db.get_order(order_id)
-    await call.bot.send_message(order_data['user_id'], "✅ Payment Verified! Ye raha aapka product: " + order_data['product_link'])
-    await call.message.edit_text("✅ Order Verified Successfully.")
+    await call.message.edit_text("✅ Order Approved!")
+    await call.bot.send_message(call.from_user.id, "✅ Payment Verified! Product mil gaya.")
     
