@@ -1,21 +1,22 @@
 import asyncio
 from aiogram import Bot, Dispatcher
 from bot.handlers import user_router, admin_router
+from fastapi import FastAPI
+import uvicorn
 
-# Webhook URL (jo aapne Render ke Environment Variables mein set kiya hai)
-WEBHOOK_URL = "https://joropixal.onrender.com" # Apna Render URL yahan daalein
+bot = Bot(token="8001535871:AAEr-DvtKgP3XggXNqih-rzy1Yfjx4UqAhI")
+dp = Dispatcher()
+app = FastAPI()
 
-async def main():
-    bot = Bot(token="8001535871:AAEr-DvtKgP3XggXNqih-rzy1Yfjx4UqAhI")
-    dp = Dispatcher()
+dp.include_router(user_router)
+dp.include_router(admin_router)
 
-    dp.include_router(user_router)
-    dp.include_router(admin_router)
+@app.post("/webhook")
+async def handle_webhook(update: dict):
+    # Webhook handling logic
+    return {"status": "ok"}
 
-    # Webhook set karein
-    await bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-    print("Bot is running with Webhook...")
-    
-    # Yahan FastAPI ka server start karna hoga jo webhook requests receive kare
-    # (Agar aapne FastAPI ka setup kiya hai toh)
+if __name__ == "__main__":
+    # Render par port 10000 use karein
+    uvicorn.run(app, host="0.0.0.0", port=10000)
     
