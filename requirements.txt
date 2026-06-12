@@ -1,6 +1,3 @@
-aiogram>=3.7.0
+aiogram
 fastapi
 uvicorn
-python-dotenv
-asyncpg
-databases
