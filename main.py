@@ -1,24 +1,26 @@
 import os
 import asyncio
+from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
 from bot.handlers import user, admin
 
-# Render ke environment variables se data lein
+app = FastAPI()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-async def main():
-    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
-    dp = Dispatcher()
-    
-    # Routers include karein
-    dp.include_router(user.router)
-    dp.include_router(admin.router)
-    
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
-if __name__ == "__main__":
-    asyncio.run(main())
+dp.include_router(user.router)
+dp.include_router(admin.router)
+
+@app.post("/webhook")
+async def handle_webhook(request: Request):
+    update = await request.json()
+    await dp.feed_raw_update(bot, update)
+    return {"status": "ok"}
+
+@app.on_event("startup")
+async def on_startup():
+    await bot.set_webhook(f"{WEBHOOK_URL}/webhook")
     
