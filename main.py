@@ -2,14 +2,13 @@ import os
 import uvicorn
 from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher
-from bot.handlers.user import router as user_router
-from bot.handlers.admin import router as admin_router
+from bot.handlers import user_router, admin_router # Yahan se import karein
 
 app = FastAPI()
 bot = Bot(token=os.getenv("BOT_TOKEN"))
 dp = Dispatcher()
 
-# Yahan router sirf ek baar add honge
+# Yahan include karein
 dp.include_router(user_router)
 dp.include_router(admin_router)
 
