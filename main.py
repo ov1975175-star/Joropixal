@@ -2,7 +2,6 @@ import os
 import uvicorn
 from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher
-# Yahan direct file se import karein
 from bot.handlers.user import router as user_router
 from bot.handlers.admin import router as admin_router
 
@@ -10,9 +9,9 @@ app = FastAPI()
 bot = Bot(token=os.getenv("BOT_TOKEN"))
 dp = Dispatcher()
 
-# Routers ko sirf yahan add karein
+# Yahan router sirf ek baar add honge
 dp.include_router(user_router)
-dp.include_router(admin.router)
+dp.include_router(admin_router)
 
 @app.post("/webhook")
 async def bot_webhook(request: Request):
