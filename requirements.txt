@@ -1,6 +1,6 @@
-aiogram>=3.0.0
-fastapi>=0.100.0
-uvicorn>=0.22.0
-sqlalchemy>=2.0.0
-asyncpg
+aiogram>=3.7.0
+fastapi
+uvicorn
 python-dotenv
+asyncpg
+databases
