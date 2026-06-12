@@ -1,12 +1,12 @@
-from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram import Router
+from aiogram.filters import Command
+from aiogram.types import Message
 
+# Yahan 'router' define hona bahut zaroori hai
 router = Router()
 
-@router.callback_query(F.data == "admin_panel")
-async def admin_panel(call: CallbackQuery):
-    await call.message.edit_text(
-        "⚙ **Admin Panel**\n\nAbhi yahan koi stats nahi hain. Product add karne ke liye database setup complete karein.",
-        parse_mode="Markdown"
-    )
-  
+# Ab aap is router ka use karke handlers banayein
+@router.message(Command("start"))
+async def start_handler(message: Message):
+    await message.answer("Hello!")
+    
