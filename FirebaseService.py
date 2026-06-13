@@ -20,10 +20,13 @@ class FirebaseService:
             return []
         return [{'id': k, **v} for k, v in data.items()]
 
-    def add_product(self, name, price, description, qr_url):
+    def add_product(self, name, price, description, photo_url, qr_url):
         ref = db.reference('products').push({
             'name': name, 'price': price,
-            'description': description, 'qr_url': qr_url, 'active': True
+            'description': description,
+            'photo_url': photo_url,
+            'qr_url': qr_url,
+            'active': True
         })
         return ref.key
 
@@ -73,4 +76,4 @@ class FirebaseService:
         if not data:
             return []
         return [{'id': k, **v} for k, v in data.items()]
-                  
+            
