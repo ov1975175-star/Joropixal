@@ -1,7 +1,6 @@
 import os
 import asyncio
 import logging
-import threading
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -25,17 +24,22 @@ dp.include_router(admin.router)
 def health_check():
     return {"status": "Active"}
 
-async def start_bot():
+async def main():
     await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
-
-def run_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(start_bot())
+    
+    # Bot aur server dono ek saath chalao
+    bot_task = asyncio.create_task(
+        dp.start_polling(bot, handle_signals=False)
+    )
+    
+    config = uvicorn.Config(app, host="0.0.0.0", 
+                           port=int(os.getenv("PORT", 10000)),
+                           log_level="error")
+    server = uvicorn.Server(config)
+    server_task = asyncio.create_task(server.serve())
+    
+    await asyncio.gather(bot_task, server_task)
 
 if __name__ == "__main__":
-    t = threading.Thread(target=run_bot, daemon=True)
-    t.start()
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
+    asyncio.run(main())
     
