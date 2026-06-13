@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 import aiohttp
+from contextlib import asynccontextmanager
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -12,24 +13,19 @@ from bot.handlers import user, admin
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 RENDER_URL = os.getenv("RENDER_URL", "https://joropixal.onrender.com")
 
-bot = Bot(token=TOKEN)
+bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
-app = FastAPI()
 
 dp.include_router(user.router)
 dp.include_router(admin.router)
 
-@app.get("/")
-def health_check():
-    return {"status": "Active"}
-
 async def keep_alive():
     """Har 10 minute mein ping karo taaki service so na jaye"""
-    await asyncio.sleep(60)  # pehle 1 min wait
+    await asyncio.sleep(60)
     while True:
         try:
             async with aiohttp.ClientSession() as session:
@@ -37,25 +33,36 @@ async def keep_alive():
             logging.info("Keep-alive ping sent!")
         except Exception as e:
             logging.warning(f"Keep-alive failed: {e}")
-        await asyncio.sleep(600)  # 10 minute
+        await asyncio.sleep(600)
 
-async def main():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     await bot.delete_webhook(drop_pending_updates=True)
-    
-    bot_task = asyncio.create_task(
+    polling_task = asyncio.create_task(
         dp.start_polling(bot, handle_signals=False)
     )
-    
     keep_alive_task = asyncio.create_task(keep_alive())
+    logging.info("Bot polling started!")
     
-    config = uvicorn.Config(app, host="0.0.0.0",
-                           port=int(os.getenv("PORT", 10000)),
-                           log_level="error")
-    server = uvicorn.Server(config)
-    server_task = asyncio.create_task(server.serve())
+    yield
     
-    await asyncio.gather(bot_task, server_task, keep_alive_task)
+    # Shutdown
+    polling_task.cancel()
+    keep_alive_task.cancel()
+    await bot.session.close()
+
+app = FastAPI(lifespan=lifespan)
+
+@app.get("/")
+def health_check():
+    return {"status": "Active"}
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", 8080)),
+        log_level="info"
+    )
     
