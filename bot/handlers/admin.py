@@ -25,7 +25,7 @@ class AddProduct(StatesGroup):
     price = State()
     description = State()
     photo_url = State()
-    product_file = State()   # NEW: actual product file
+    product_file = State()
 
 def admin_menu():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -246,6 +246,7 @@ async def add_product_file(message: Message, state: FSMContext):
         product_file_type=file_type
     )
     await state.clear()
+
     await message.answer(
         f"✅ <b>Product Added Successfully!</b>\n"
         f"━━━━━━━━━━━━━━━━\n"
@@ -255,7 +256,63 @@ async def add_product_file(message: Message, state: FSMContext):
         f"🖼️ Thumbnail: {'✅' if data.get('photo_url') else '❌'}\n"
         f"📁 Product File: ✅ ({file_type})\n"
         f"━━━━━━━━━━━━━━━━\n"
-        f"🎯 Approve hote hi user ko file automatically mil jaayegi!",
+        f"📢 Sabko broadcast ho raha hai...",
+        parse_mode="HTML"
+    )
+
+    # ─── AUTO BROADCAST TO ALL USERS ────────────────────────────
+    users = db.get_all_users()
+    bot_info = await message.bot.get_me()
+
+    broadcast_text = (
+        f"╔══════════════════╗\n"
+        f"║  🔥 <b>NEW PRODUCT ALERT!</b> 🔥\n"
+        f"╚══════════════════╝\n\n"
+        f"🎯 <b>{data['name']}</b>\n\n"
+        f"📝 {data['description']}\n\n"
+        f"┌─────────────────┐\n"
+        f"│  💰 Price: <b>₹{data['price']}</b> ONLY!\n"
+        f"└─────────────────┘\n\n"
+        f"⚡ <i>Limited Stock — Jaldi Karo!</i>\n"
+        f"🛒 Abhi order karo! 👇"
+    )
+
+    buy_button = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="🛒 Abhi Kharido!",
+            url=f"https://t.me/{bot_info.username}"
+        )]
+    ])
+
+    sent = 0
+    failed = 0
+    for u in users:
+        try:
+            uid = int(u['user_id'])
+            if data.get('photo_url'):
+                await message.bot.send_photo(
+                    uid,
+                    photo=data['photo_url'],
+                    caption=broadcast_text,
+                    parse_mode="HTML",
+                    reply_markup=buy_button
+                )
+            else:
+                await message.bot.send_message(
+                    uid,
+                    broadcast_text,
+                    parse_mode="HTML",
+                    reply_markup=buy_button
+                )
+            sent += 1
+        except:
+            failed += 1
+
+    await message.answer(
+        f"🎉 <b>Broadcast Complete!</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"✅ Sent: <b>{sent}</b>\n"
+        f"❌ Failed: <b>{failed}</b>",
         parse_mode="HTML"
     )
 
@@ -319,7 +376,7 @@ async def update_file_done(message: Message, state: FSMContext):
     )
 
 
-# ─── DELETE PRODUCT (with confirmation) ─────────────────────────
+# ─── DELETE PRODUCT ─────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("del_product_confirm:"))
 async def delete_product_confirm(call: CallbackQuery):
@@ -397,7 +454,7 @@ async def admin_pending(call: CallbackQuery):
     await call.answer()
 
 
-# ─── APPROVE ORDER → AUTO SEND FILE ─────────────────────────────
+# ─── APPROVE ORDER ───────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("approve:"))
 async def approve_order(call: CallbackQuery):
@@ -415,7 +472,6 @@ async def approve_order(call: CallbackQuery):
 
     bot = Bot(token=BOT_TOKEN)
     try:
-        # Step 1: Approval message
         await bot.send_message(
             user_id,
             f"🎉 <b>Payment Approved!</b>\n"
@@ -425,20 +481,17 @@ async def approve_order(call: CallbackQuery):
             parse_mode="HTML"
         )
 
-        # Step 2: Thumbnail bhejo (agar hai)
         if product and product.get('photo_url'):
             try:
-                photo = product['photo_url']
                 await bot.send_photo(
                     user_id,
-                    photo=photo,
+                    photo=product['photo_url'],
                     caption=f"🖼️ <b>{product['name']}</b>",
                     parse_mode="HTML"
                 )
             except Exception as e:
                 print(f"Thumbnail error: {e}")
 
-        # Step 3: Product details
         if product:
             await bot.send_message(
                 user_id,
@@ -451,7 +504,6 @@ async def approve_order(call: CallbackQuery):
                 parse_mode="HTML"
             )
 
-        # Step 4: ACTUAL PRODUCT FILE BHEJO ← Main part
         if product and product.get('product_file_id'):
             file_id = product['product_file_id']
             file_type = product.get('product_file_type', 'document')
@@ -466,20 +518,17 @@ async def approve_order(call: CallbackQuery):
             elif file_type == "animation":
                 await bot.send_animation(user_id, animation=file_id, caption=caption, parse_mode="HTML")
             else:
-                # document / PDF / ZIP / APK — sab
                 await bot.send_document(user_id, document=file_id, caption=caption, parse_mode="HTML")
         else:
-            # File nahi hai toh admin ko warn karo
             await bot.send_message(
                 user_id,
                 f"📦 <b>{order['product_name']}</b>\n\n"
                 f"✅ Payment approved!\n"
-                f"⏳ Product file jald bheja jaayega. Admin se contact karein.",
+                f"⏳ Product file jald bheja jaayega.",
                 parse_mode="HTML"
             )
             await call.message.answer(
-                "⚠️ <b>Warning:</b> Is product ki file upload nahi ki thi!\n"
-                "User ko manually product bhejo ya product mein file add karo.",
+                "⚠️ <b>Warning:</b> Is product ki file upload nahi ki thi!",
                 parse_mode="HTML"
             )
 
@@ -538,39 +587,4 @@ async def admin_users(call: CallbackQuery):
         return
 
     users = db.get_all_users()
-    text = f"👥 <b>Total Users: {len(users)}</b>\n━━━━━━━━━━━━━━━━\n\n"
-    for u in users[:25]:
-        text += f"• @{u.get('username','N/A')} — {u.get('full_name','')}\n"
-    if len(users) > 25:
-        text += f"\n...and {len(users)-25} more"
-
-    await call.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀️ Back", callback_data="admin_panel")]
-        ]),
-        parse_mode="HTML"
-    )
-
-
-@router.callback_query(F.data == "admin_stats")
-async def admin_stats(call: CallbackQuery):
-    if not is_admin(call.from_user.id):
-        return
-
-    users = db.get_all_users()
-    products = db.get_all_products()
-    pending = db.get_pending_orders()
-
-    await call.message.edit_text(
-        f"📊 <b>Store Statistics</b>\n"
-        f"━━━━━━━━━━━━━━━━\n"
-        f"👥 Total Users: <b>{len(users)}</b>\n"
-        f"📦 Total Products: <b>{len(products)}</b>\n"
-        f"🕐 Pending Orders: <b>{len(pending)}</b>\n"
-        f"━━━━━━━━━━━━━━━━",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="◀️ Back", callback_data="admin_panel")]
-        ]),
-        parse_mode="HTML"
-    )
+    tex
