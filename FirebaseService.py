@@ -20,12 +20,16 @@ class FirebaseService:
             return []
         return [{'id': k, **v} for k, v in data.items()]
 
-    def add_product(self, name, price, description, photo_url, qr_url):
+    def add_product(self, name, price, description, photo_url='', qr_url='',
+                    product_file_id='', product_file_type=''):
         ref = db.reference('products').push({
-            'name': name, 'price': price,
+            'name': name,
+            'price': price,
             'description': description,
             'photo_url': photo_url,
             'qr_url': qr_url,
+            'product_file_id': product_file_id,
+            'product_file_type': product_file_type,
             'active': True
         })
         return ref.key
@@ -41,9 +45,12 @@ class FirebaseService:
 
     def create_order(self, user_id, username, product_id, product_name, price):
         ref = db.reference('orders').push({
-            'user_id': user_id, 'username': username,
-            'product_id': product_id, 'product_name': product_name,
-            'price': price, 'status': 'pending'
+            'user_id': user_id,
+            'username': username,
+            'product_id': product_id,
+            'product_name': product_name,
+            'price': price,
+            'status': 'pending'
         })
         return ref.key
 
@@ -57,18 +64,22 @@ class FirebaseService:
         data = db.reference('orders').get()
         if not data:
             return []
-        return [{'id': k, **v} for k, v in data.items() if v.get('status') == 'pending']
+        return [{'id': k, **v} for k, v in data.items()
+                if v.get('status') == 'pending']
 
     def get_user_orders(self, user_id):
         data = db.reference('orders').get()
         if not data:
             return []
         return [{'id': k, **v} for k, v in data.items()
-                if str(v.get('user_id')) == str(user_id) and v.get('status') == 'approved']
+                if str(v.get('user_id')) == str(user_id)
+                and v.get('status') == 'approved']
 
     def save_user(self, user_id, username, full_name):
         db.reference(f'users/{user_id}').set({
-            'username': username, 'full_name': full_name, 'user_id': user_id
+            'username': username,
+            'full_name': full_name,
+            'user_id': user_id
         })
 
     def get_all_users(self):
@@ -76,4 +87,3 @@ class FirebaseService:
         if not data:
             return []
         return [{'id': k, **v} for k, v in data.items()]
-            
