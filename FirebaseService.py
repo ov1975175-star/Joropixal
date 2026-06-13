@@ -3,14 +3,13 @@ import json
 import firebase_admin
 from firebase_admin import credentials, db
 
-# Try file first, then environment variable
 if os.path.exists("serviceAccountKey.json"):
     cred = credentials.Certificate("serviceAccountKey.json")
 else:
     cred = credentials.Certificate(json.loads(os.getenv("FIREBASE_JSON")))
 
 firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://joro-gaming-default-rtdb.firebaseio.com'
+    'databaseURL': 'https://new-bot-projext-default-rtdb.firebaseio.com'
 })
 
 class FirebaseService:
@@ -74,4 +73,4 @@ class FirebaseService:
         if not data:
             return []
         return [{'id': k, **v} for k, v in data.items()]
-    
+                  
