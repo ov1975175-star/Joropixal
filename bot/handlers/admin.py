@@ -266,26 +266,69 @@ async def approve_order(call: CallbackQuery):
     order = db.get_order(order_id)
     db.update_order(order_id, {"status": "approved"})
 
+    # Product details fetch karo
+    product_id = order.get('product_id')
+    product = db.get_product(product_id) if product_id else None
+
     bot = get_bot()
     try:
+        # Step 1: Approval message
         await bot.send_message(
             int(user_id),
             f"🎉 <b>Payment Approved!</b>\n"
             f"━━━━━━━━━━━━━━━━\n"
-            f"✅ Your order for <b>{order['product_name']}</b> is confirmed!\n\n"
-            f"📦 Your product will be delivered shortly.\n"
-            f"Thank you for shopping with us! 🙏",
+            f"✅ <b>{order['product_name']}</b> ka order confirm ho gaya!\n\n"
+            f"📦 Neeche aapka product hai:",
             parse_mode="HTML"
         )
-    except:
+
+        # Step 2: Product photo bhejo (agar hai)
+        if product and product.get('photo_url'):
+            try:
+                await bot.send_photo(
+                    int(user_id),
+                    photo=product['photo_url'],
+                    caption=f"🖼️ <b>{product['name']}</b>",
+                    parse_mode="HTML"
+                )
+            except:
+                pass
+
+        # Step 3: Product details bhejo
+        if product:
+            await bot.send_message(
+                int(user_id),
+                f"📦 <b>Product Details</b>\n"
+                f"━━━━━━━━━━━━━━━━\n"
+                f"🏷️ Name: <b>{product['name']}</b>\n"
+                f"💰 Price: ₹{product['price']}\n"
+                f"📝 {product.get('description', '')}\n"
+                f"━━━━━━━━━━━━━━━━\n"
+                f"🙏 Thank you for your purchase!",
+                parse_mode="HTML"
+            )
+
+        # Step 4: QR code bhejo (agar hai)
+        if product and product.get('qr_url'):
+            try:
+                await bot.send_photo(
+                    int(user_id),
+                    photo=product['qr_url'],
+                    caption="📲 <b>Your QR Code</b>",
+                    parse_mode="HTML"
+                )
+            except:
+                pass
+
+    except Exception as e:
         pass
     await bot.session.close()
 
     await call.message.edit_text(
-        call.message.text + "\n\n✅ <b>APPROVED & USER NOTIFIED</b>",
+        call.message.text + "\n\n✅ <b>APPROVED & PRODUCT SENT TO USER</b>",
         parse_mode="HTML"
     )
-    await call.answer("✅ Approved!")
+    await call.answer("✅ Approved & Product Sent!")
 
 
 @router.callback_query(F.data.startswith("reject:"))
