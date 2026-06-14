@@ -564,4 +564,18 @@ async def reject_order(call: CallbackQuery):
         await bot.send_message(
             user_id,
             f"❌ <b>Payment Rejected</b>\n"
-            f"━━━━━━━━━━━━━━━━\n
+            f"━━━━━━━━━━━━━━━━\n"
+            f"Aapka payment verify nahi ho saka.\n\n"
+            f"Koi problem ho toh Support se contact karo.",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await call.message.answer(f"⚠️ Error sending rejection: {e}", parse_mode="HTML")
+    finally:
+        await bot.session.close()
+
+    await call.message.edit_text(
+        call.message.text + "\n\n❌ <b>REJECTED</b>",
+        parse_mode="HTML"
+    )
+    await call.answer("❌ Order Rejected!")
