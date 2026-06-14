@@ -25,7 +25,14 @@ class AddProduct(StatesGroup):
     price = State()
     description = State()
     photo_url = State()
+    qr_code = State()
     product_file = State()
+
+class UpdateFile(StatesGroup):
+    waiting_file = State()
+
+class UpdateQR(StatesGroup):
+    waiting_qr = State()
 
 def admin_menu():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -103,7 +110,8 @@ async def admin_product_detail(call: CallbackQuery):
         return
 
     status = "✅ Active" if product.get('active', True) else "❌ Inactive"
-    file_status = "📁 Ready" if product.get('product_file_id') else "⚠️ No File Uploaded"
+    file_status = "📁 Ready" if product.get('product_file_id') else "⚠️ No File"
+    qr_status = "✅ Ready" if product.get('qr_url') else "❌ No QR"
     file_type = product.get('product_file_type', 'unknown')
 
     text = (
@@ -112,15 +120,16 @@ async def admin_product_detail(call: CallbackQuery):
         f"💰 Price: ₹{product['price']}\n"
         f"📝 {product.get('description', 'No description')}\n"
         f"🖼️ Thumbnail: {'✅' if product.get('photo_url') else '❌'}\n"
-        f"📁 Product File: {file_status}\n"
-        f"🗂️ File Type: {file_type}\n"
+        f"📱 QR Code: {qr_status}\n"
+        f"📁 Product File: {file_status} ({file_type})\n"
         f"Status: {status}"
     )
 
     toggle_text = "❌ Deactivate" if product.get('active', True) else "✅ Activate"
     buttons = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=toggle_text, callback_data=f"toggle_product:{product_id}")],
-        [InlineKeyboardButton(text="📁 Update Product File", callback_data=f"update_file:{product_id}")],
+        [InlineKeyboardButton(text="📱 Update QR Code", callback_data=f"update_qr:{product_id}")],
+        [InlineKeyboardButton(text="📁 Update Product File/Link", callback_data=f"update_file:{product_id}")],
         [InlineKeyboardButton(text="🗑️ Delete Product", callback_data=f"del_product_confirm:{product_id}")],
         [InlineKeyboardButton(text="◀️ Back", callback_data="admin_products")]
     ])
@@ -141,14 +150,12 @@ async def toggle_product(call: CallbackQuery):
     await admin_product_detail(call)
 
 
-# ─── ADD PRODUCT FLOW ───────────────────────────────────────────
-
 @router.callback_query(F.data == "add_product")
 async def add_product_start(call: CallbackQuery, state: FSMContext):
     if not is_admin(call.from_user.id):
         return
     await call.message.answer(
-        "📦 <b>Add New Product</b>\n\nStep 1/5 — Enter product <b>name</b>:",
+        "📦 <b>Add New Product</b>\n\nStep 1/6 — Enter product <b>name</b>:",
         parse_mode="HTML"
     )
     await state.set_state(AddProduct.name)
@@ -158,7 +165,7 @@ async def add_product_start(call: CallbackQuery, state: FSMContext):
 @router.message(AddProduct.name)
 async def add_name(message: Message, state: FSMContext):
     await state.update_data(name=message.text)
-    await message.answer("💰 Step 2/5 — Enter <b>price</b> (numbers only, e.g. 99):", parse_mode="HTML")
+    await message.answer("💰 Step 2/6 — Enter <b>price</b> (numbers only, e.g. 99):", parse_mode="HTML")
     await state.set_state(AddProduct.price)
 
 
@@ -168,7 +175,7 @@ async def add_price(message: Message, state: FSMContext):
         await message.answer("❌ Numbers only! Try again:")
         return
     await state.update_data(price=int(message.text))
-    await message.answer("📝 Step 3/5 — Enter product <b>description</b>:", parse_mode="HTML")
+    await message.answer("📝 Step 3/6 — Enter product <b>description</b>:", parse_mode="HTML")
     await state.set_state(AddProduct.description)
 
 
@@ -176,7 +183,7 @@ async def add_price(message: Message, state: FSMContext):
 async def add_description(message: Message, state: FSMContext):
     await state.update_data(description=message.text)
     await message.answer(
-        "🖼️ Step 4/5 — Send <b>thumbnail image</b> for this product\n\n"
+        "🖼️ Step 4/6 — Send <b>thumbnail image</b> for this product\n\n"
         "(Display ke liye — product listing mein dikhega)\n"
         "Ya type karo <b>skip</b>:",
         parse_mode="HTML"
@@ -195,12 +202,27 @@ async def add_photo(message: Message, state: FSMContext):
         photo_url = message.text
     await state.update_data(photo_url=photo_url)
     await message.answer(
-        "📁 Step 5/5 — Ab <b>actual product file</b> bhejo\n\n"
-        "✅ Koi bhi file bhej sakte ho:\n"
-        "• PDF, Image, Video\n"
-        "• ZIP, APK, Text file\n"
-        "• Ya koi bhi document\n\n"
-        "⚡ Ye file approve hone ke baad user ko automatically mil jaayegi!",
+        "📱 Step 5/6 — <b>QR Code image</b> bhejo (payment ke liye)\n\n"
+        "Ya type karo <b>skip</b>:",
+        parse_mode="HTML"
+    )
+    await state.set_state(AddProduct.qr_code)
+
+
+@router.message(AddProduct.qr_code)
+async def add_qr(message: Message, state: FSMContext):
+    qr_url = ""
+    if message.text and message.text.lower() == "skip":
+        qr_url = ""
+    elif message.photo:
+        qr_url = message.photo[-1].file_id
+    await state.update_data(qr_url=qr_url)
+    await message.answer(
+        "📁 Step 6/6 — Ab <b>product file ya link</b> bhejo\n\n"
+        "✅ File bhej sakte ho:\n"
+        "• PDF, Image, Video, ZIP, APK\n\n"
+        "✅ Ya sirf <b>link paste karo</b> (http:// se shuru)\n\n"
+        "⚡ Ye approve hone ke baad user ko mil jaayega!",
         parse_mode="HTML"
     )
     await state.set_state(AddProduct.product_file)
@@ -211,7 +233,10 @@ async def add_product_file(message: Message, state: FSMContext):
     file_id = None
     file_type = None
 
-    if message.document:
+    if message.text and (message.text.startswith("http://") or message.text.startswith("https://")):
+        file_id = message.text.strip()
+        file_type = "link"
+    elif message.document:
         file_id = message.document.file_id
         file_type = "document"
     elif message.photo:
@@ -231,7 +256,7 @@ async def add_product_file(message: Message, state: FSMContext):
         file_type = "sticker"
 
     if not file_id:
-        await message.answer("❌ Koi file nahi mili! Please ek file bhejo:")
+        await message.answer("❌ Koi file ya link nahi mila! File bhejo ya http:// link do:")
         return
 
     data = await state.get_data()
@@ -241,7 +266,7 @@ async def add_product_file(message: Message, state: FSMContext):
         price=data['price'],
         description=data['description'],
         photo_url=data.get('photo_url', ''),
-        qr_url='',
+        qr_url=data.get('qr_url', ''),
         product_file_id=file_id,
         product_file_type=file_type
     )
@@ -254,13 +279,13 @@ async def add_product_file(message: Message, state: FSMContext):
         f"💰 Price: ₹{data['price']}\n"
         f"📝 {data['description']}\n"
         f"🖼️ Thumbnail: {'✅' if data.get('photo_url') else '❌'}\n"
-        f"📁 Product File: ✅ ({file_type})\n"
+        f"📱 QR Code: {'✅' if data.get('qr_url') else '❌'}\n"
+        f"📁 Product: ✅ ({file_type})\n"
         f"━━━━━━━━━━━━━━━━\n"
         f"📢 Sabko broadcast ho raha hai...",
         parse_mode="HTML"
     )
 
-    # ─── AUTO BROADCAST TO ALL USERS ────────────────────────────
     users = db.get_all_users()
     bot_info = await message.bot.get_me()
 
@@ -278,10 +303,7 @@ async def add_product_file(message: Message, state: FSMContext):
     )
 
     buy_button = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="🛒 Abhi Kharido!",
-            url=f"https://t.me/{bot_info.username}"
-        )]
+        [InlineKeyboardButton(text="🛒 Abhi Kharido!", url=f"https://t.me/{bot_info.username}")]
     ])
 
     sent = 0
@@ -290,37 +312,45 @@ async def add_product_file(message: Message, state: FSMContext):
         try:
             uid = int(u['user_id'])
             if data.get('photo_url'):
-                await message.bot.send_photo(
-                    uid,
-                    photo=data['photo_url'],
-                    caption=broadcast_text,
-                    parse_mode="HTML",
-                    reply_markup=buy_button
-                )
+                await message.bot.send_photo(uid, photo=data['photo_url'], caption=broadcast_text, parse_mode="HTML", reply_markup=buy_button)
             else:
-                await message.bot.send_message(
-                    uid,
-                    broadcast_text,
-                    parse_mode="HTML",
-                    reply_markup=buy_button
-                )
+                await message.bot.send_message(uid, broadcast_text, parse_mode="HTML", reply_markup=buy_button)
             sent += 1
         except:
             failed += 1
 
     await message.answer(
-        f"🎉 <b>Broadcast Complete!</b>\n"
-        f"━━━━━━━━━━━━━━━━\n"
-        f"✅ Sent: <b>{sent}</b>\n"
-        f"❌ Failed: <b>{failed}</b>",
+        f"🎉 <b>Broadcast Complete!</b>\n━━━━━━━━━━━━━━━━\n✅ Sent: <b>{sent}</b>\n❌ Failed: <b>{failed}</b>",
         parse_mode="HTML"
     )
 
 
-# ─── UPDATE PRODUCT FILE ────────────────────────────────────────
+@router.callback_query(F.data.startswith("update_qr:"))
+async def update_qr_start(call: CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user.id):
+        return
+    product_id = call.data.split(":")[1]
+    await state.update_data(update_product_id=product_id)
+    await call.message.answer(
+        "📱 <b>Update QR Code</b>\n\nNaya QR code image bhejo:",
+        parse_mode="HTML"
+    )
+    await state.set_state(UpdateQR.waiting_qr)
+    await call.answer()
 
-class UpdateFile(StatesGroup):
-    waiting_file = State()
+
+@router.message(UpdateQR.waiting_qr)
+async def update_qr_done(message: Message, state: FSMContext):
+    if not message.photo:
+        await message.answer("❌ Photo chahiye! Dobara bhejo:")
+        return
+    qr_id = message.photo[-1].file_id
+    data = await state.get_data()
+    product_id = data['update_product_id']
+    db.update_product(product_id, {"qr_url": qr_id})
+    await state.clear()
+    await message.answer("✅ <b>QR Code updated successfully!</b>", parse_mode="HTML")
+
 
 @router.callback_query(F.data.startswith("update_file:"))
 async def update_file_start(call: CallbackQuery, state: FSMContext):
@@ -329,7 +359,7 @@ async def update_file_start(call: CallbackQuery, state: FSMContext):
     product_id = call.data.split(":")[1]
     await state.update_data(update_product_id=product_id)
     await call.message.answer(
-        "📁 <b>Update Product File</b>\n\nNaya product file bhejo (PDF/Image/Video/ZIP — kuch bhi):",
+        "📁 <b>Update Product File/Link</b>\n\nFile bhejo ya http:// link paste karo:",
         parse_mode="HTML"
     )
     await state.set_state(UpdateFile.waiting_file)
@@ -341,7 +371,10 @@ async def update_file_done(message: Message, state: FSMContext):
     file_id = None
     file_type = None
 
-    if message.document:
+    if message.text and (message.text.startswith("http://") or message.text.startswith("https://")):
+        file_id = message.text.strip()
+        file_type = "link"
+    elif message.document:
         file_id = message.document.file_id
         file_type = "document"
     elif message.photo:
@@ -358,7 +391,7 @@ async def update_file_done(message: Message, state: FSMContext):
         file_type = "animation"
 
     if not file_id:
-        await message.answer("❌ File nahi mili! Dobara bhejo:")
+        await message.answer("❌ File ya link nahi mila! Dobara bhejo:")
         return
 
     data = await state.get_data()
@@ -369,14 +402,10 @@ async def update_file_done(message: Message, state: FSMContext):
     })
     await state.clear()
     await message.answer(
-        f"✅ <b>Product file updated!</b>\n"
-        f"🗂️ Type: {file_type}\n"
-        f"📁 File ID saved successfully.",
+        f"✅ <b>Product updated!</b>\n🗂️ Type: {file_type}",
         parse_mode="HTML"
     )
 
-
-# ─── DELETE PRODUCT ─────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("del_product_confirm:"))
 async def delete_product_confirm(call: CallbackQuery):
@@ -407,8 +436,6 @@ async def delete_product(call: CallbackQuery):
     await call.answer("🗑️ Product deleted!", show_alert=True)
     await admin_products(call)
 
-
-# ─── PENDING ORDERS ─────────────────────────────────────────────
 
 @router.callback_query(F.data == "admin_pending")
 async def admin_pending(call: CallbackQuery):
@@ -454,8 +481,6 @@ async def admin_pending(call: CallbackQuery):
     await call.answer()
 
 
-# ─── APPROVE ORDER ───────────────────────────────────────────────
-
 @router.callback_query(F.data.startswith("approve:"))
 async def approve_order(call: CallbackQuery):
     if not is_admin(call.from_user.id):
@@ -481,35 +506,20 @@ async def approve_order(call: CallbackQuery):
             parse_mode="HTML"
         )
 
-        if product and product.get('photo_url'):
-            try:
-                await bot.send_photo(
-                    user_id,
-                    photo=product['photo_url'],
-                    caption=f"🖼️ <b>{product['name']}</b>",
-                    parse_mode="HTML"
-                )
-            except Exception as e:
-                print(f"Thumbnail error: {e}")
-
-        if product:
-            await bot.send_message(
-                user_id,
-                f"📦 <b>Product Details</b>\n"
-                f"━━━━━━━━━━━━━━━━\n"
-                f"🏷️ <b>{product['name']}</b>\n"
-                f"💰 ₹{product['price']}\n"
-                f"📝 {product.get('description', '')}\n"
-                f"━━━━━━━━━━━━━━━━",
-                parse_mode="HTML"
-            )
-
         if product and product.get('product_file_id'):
             file_id = product['product_file_id']
             file_type = product.get('product_file_type', 'document')
             caption = f"📁 <b>Aapka Product: {product['name']}</b>\n🙏 Thank you for your purchase!"
 
-            if file_type == "photo":
+            if file_type == "link":
+                await bot.send_message(
+                    user_id,
+                    f"📦 <b>Aapka Product: {product['name']}</b>\n\n"
+                    f"🔗 <b>Download Link:</b>\n{file_id}\n\n"
+                    f"🙏 Thank you for your purchase!",
+                    parse_mode="HTML"
+                )
+            elif file_type == "photo":
                 await bot.send_photo(user_id, photo=file_id, caption=caption, parse_mode="HTML")
             elif file_type == "video":
                 await bot.send_video(user_id, video=file_id, caption=caption, parse_mode="HTML")
@@ -522,30 +532,22 @@ async def approve_order(call: CallbackQuery):
         else:
             await bot.send_message(
                 user_id,
-                f"📦 <b>{order['product_name']}</b>\n\n"
-                f"✅ Payment approved!\n"
-                f"⏳ Product file jald bheja jaayega.",
+                f"✅ Payment approved!\n⏳ Product file jald bheja jaayega.",
                 parse_mode="HTML"
             )
-            await call.message.answer(
-                "⚠️ <b>Warning:</b> Is product ki file upload nahi ki thi!",
-                parse_mode="HTML"
-            )
+            await call.message.answer("⚠️ <b>Warning:</b> Is product ki file upload nahi ki thi!", parse_mode="HTML")
 
     except Exception as e:
-        print(f"Approve error: {e}")
         await call.message.answer(f"⚠️ Error: {e}", parse_mode="HTML")
     finally:
         await bot.session.close()
 
     await call.message.edit_text(
-        call.message.text + "\n\n✅ <b>APPROVED — PRODUCT FILE SENT TO USER</b>",
+        call.message.text + "\n\n✅ <b>APPROVED — FILE SENT TO USER</b>",
         parse_mode="HTML"
     )
     await call.answer("✅ Approved & Product Sent!")
 
-
-# ─── REJECT ORDER ────────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("reject:"))
 async def reject_order(call: CallbackQuery):
@@ -562,29 +564,4 @@ async def reject_order(call: CallbackQuery):
         await bot.send_message(
             user_id,
             f"❌ <b>Payment Rejected</b>\n"
-            f"━━━━━━━━━━━━━━━━\n"
-            f"Sorry, payment verify nahi ho saka.\n\n"
-            f"Agar galti lage toh support se contact karo.",
-            parse_mode="HTML"
-        )
-    except Exception as e:
-        print(f"Reject notify error: {e}")
-    finally:
-        await bot.session.close()
-
-    await call.message.edit_text(
-        call.message.text + "\n\n❌ <b>REJECTED & USER NOTIFIED</b>",
-        parse_mode="HTML"
-    )
-    await call.answer("❌ Rejected!")
-
-
-# ─── USERS & STATS ──────────────────────────────────────────────
-
-@router.callback_query(F.data == "admin_users")
-async def admin_users(call: CallbackQuery):
-    if not is_admin(call.from_user.id):
-        return
-
-    users = db.get_all_users()
-    tex
+            f"━━━━━━━━━━━━━━━━\n
