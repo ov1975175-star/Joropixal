@@ -142,8 +142,8 @@ async def get_free_product(call: CallbackQuery):
         await call.answer("Product not found!", show_alert=True)
         return
 
-    file_link = product.get('product_file')
-    if not file_link:
+    file_id = product.get('product_file')
+    if not file_id:
         await call.answer("File not available yet!", show_alert=True)
         return
 
@@ -155,19 +155,39 @@ async def get_free_product(call: CallbackQuery):
         price=0
     )
 
-    await call.message.answer(
+    await call.answer("Here's your free product! 🎁")
+
+    caption = (
         f"🎁 <b>Your Free Product!</b>\n"
         f"━━━━━━━━━━━━━━━━\n"
         f"📦 <b>{product['name']}</b>\n\n"
-        f"🔗 <b>Download Link:</b>\n{file_link}\n\n"
-        f"━━━━━━━━━━━━━━━━\n"
-        f"Enjoy! 🙏",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🏠 Home", callback_data="go_home")]
-        ]),
-        parse_mode="HTML"
+        f"Enjoy! 🙏"
     )
-    await call.answer("Here's your free product! 🎁")
+    home_btn = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🏠 Home", callback_data="go_home")]
+    ])
+
+    try:
+        await call.message.answer_document(
+            document=file_id,
+            caption=caption,
+            reply_markup=home_btn,
+            parse_mode="HTML"
+        )
+    except:
+        try:
+            await call.message.answer_photo(
+                photo=file_id,
+                caption=caption,
+                reply_markup=home_btn,
+                parse_mode="HTML"
+            )
+        except:
+            await call.message.answer(
+                f"🎁 <b>Your Free Product!</b>\n\n📦 <b>{product['name']}</b>\n\n🔗 {file_id}",
+                reply_markup=home_btn,
+                parse_mode="HTML"
+            )
 
 
 @router.callback_query(F.data.startswith("buy:"))
