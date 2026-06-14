@@ -142,7 +142,7 @@ async def get_free_product(call: CallbackQuery):
         await call.answer("Product not found!", show_alert=True)
         return
 
-    file_id = product.get('product_file_id')  # FIXED
+    file_id = product.get('product_file_id')
     file_type = product.get('product_file_type', 'document')
 
     if not file_id:
@@ -168,6 +168,18 @@ async def get_free_product(call: CallbackQuery):
     home_btn = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🏠 Home", callback_data="go_home")]
     ])
+
+    if file_type == "link":
+        await call.message.answer(
+            f"🎁 <b>Your Free Product!</b>\n"
+            f"━━━━━━━━━━━━━━━━\n"
+            f"📦 <b>{product['name']}</b>\n\n"
+            f"🔗 <b>Link:</b> {file_id}\n\n"
+            f"Enjoy! 🙏",
+            reply_markup=home_btn,
+            parse_mode="HTML"
+        )
+        return
 
     try:
         if file_type == "photo":
