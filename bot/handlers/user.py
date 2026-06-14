@@ -142,7 +142,9 @@ async def get_free_product(call: CallbackQuery):
         await call.answer("Product not found!", show_alert=True)
         return
 
-    file_id = product.get('product_file')
+    file_id = product.get('product_file_id')  # FIXED
+    file_type = product.get('product_file_type', 'document')
+
     if not file_id:
         await call.answer("File not available yet!", show_alert=True)
         return
@@ -168,26 +170,22 @@ async def get_free_product(call: CallbackQuery):
     ])
 
     try:
-        await call.message.answer_document(
-            document=file_id,
-            caption=caption,
+        if file_type == "photo":
+            await call.message.answer_photo(photo=file_id, caption=caption, reply_markup=home_btn, parse_mode="HTML")
+        elif file_type == "video":
+            await call.message.answer_video(video=file_id, caption=caption, reply_markup=home_btn, parse_mode="HTML")
+        elif file_type == "audio":
+            await call.message.answer_audio(audio=file_id, caption=caption, reply_markup=home_btn, parse_mode="HTML")
+        elif file_type == "animation":
+            await call.message.answer_animation(animation=file_id, caption=caption, reply_markup=home_btn, parse_mode="HTML")
+        else:
+            await call.message.answer_document(document=file_id, caption=caption, reply_markup=home_btn, parse_mode="HTML")
+    except Exception as e:
+        await call.message.answer(
+            f"🎁 <b>Your Free Product!</b>\n\n📦 <b>{product['name']}</b>\n\n⚠️ Error: {e}",
             reply_markup=home_btn,
             parse_mode="HTML"
         )
-    except:
-        try:
-            await call.message.answer_photo(
-                photo=file_id,
-                caption=caption,
-                reply_markup=home_btn,
-                parse_mode="HTML"
-            )
-        except:
-            await call.message.answer(
-                f"🎁 <b>Your Free Product!</b>\n\n📦 <b>{product['name']}</b>\n\n🔗 {file_id}",
-                reply_markup=home_btn,
-                parse_mode="HTML"
-            )
 
 
 @router.callback_query(F.data.startswith("buy:"))
